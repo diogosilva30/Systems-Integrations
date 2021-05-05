@@ -2,6 +2,17 @@ DROP DATABASE IF EXISTS ex2;
 create database ex2;
 use ex2;
 
+-- Garantir novos users
+DROP USER IF EXISTS 'gestor_livros'@'localhost' ;
+DROP USER IF EXISTS 'gestor_emprestimos'@'localhost' ;
+DROP USER IF EXISTS 'gestor_alunos'@'localhost' ;
+-- Primeiro criamos utilizadores
+CREATE USER 'gestor_livros'@'localhost' IDENTIFIED BY 'password'; 
+CREATE USER 'gestor_emprestimos'@'localhost' IDENTIFIED BY 'password'; 
+CREATE USER 'gestor_alunos'@'localhost' IDENTIFIED BY 'password';
+
+
+-- Criar Tabela "Aluno"
 CREATE TABLE Aluno(
 	numero_aluno integer NOT NULL AUTO_INCREMENT,
     nome varchar(255) NOT NULL,
@@ -11,6 +22,9 @@ CREATE TABLE Aluno(
     PRIMARY KEY (numero_aluno)
 );
 
+-- Dar permissoes ao utilizador criado
+
+--
 CREATE TABLE Livro(
 	numero_livro integer NOT NULL AUTO_INCREMENT,
     titulo varchar(255) NOT NULL,
@@ -40,19 +54,22 @@ CREATE TABLE Emprestimo(
 -- ===========================================================================================
 DELIMITER $$
 
--- 1. Adicionar novo aluno
+
+-- 1. Listar alunos
+CREATE PROCEDURE listar_alunos ()
+BEGIN
+	SELECT * FROM Aluno;
+END $$
+-- 2. Adicionar novo aluno
 
 CREATE PROCEDURE adicionar_aluno (IN nome_new text, IN endereco_new text, IN garantia_new text)
 BEGIN
 	INSERT INTO Aluno(nome, endereco, garantia)
     VALUES (nome_new, endereco_new, garantia_new);
-    
-    -- Agora temos que dar return do id gerado para o aluno 
-    SELECT LAST_INSERT_ID() INTO @Alun;
 END $$
 
 
--- 2. Update de um aluno
+-- 3. Update de um aluno
 
 CREATE PROCEDURE atualizar_aluno (IN n_aluno integer, IN nome_new text, IN endereco_new text, IN garantia_new text)
 BEGIN
@@ -61,7 +78,7 @@ BEGIN
     WHERE numero_aluno=n_aluno;
 END $$
 
--- 3. Apagar um aluno
+-- 4. Apagar um aluno
 DELIMITER $$
 CREATE PROCEDURE apagar_aluno (IN n_aluno integer)
 BEGIN
@@ -69,17 +86,29 @@ BEGIN
     WHERE numero_aluno=n_aluno;
 END $$
 
+-- Damos permissoes ao utilizador "gestor_alunos" de executar estes procedures
+GRANT EXECUTE ON PROCEDURE listar_alunos TO 'gestor_alunos'@'localhost'; 
+GRANT EXECUTE ON PROCEDURE adicionar_aluno TO 'gestor_alunos'@'localhost'; 
+GRANT EXECUTE ON PROCEDURE atualizar_aluno TO 'gestor_alunos'@'localhost'; 
+GRANT EXECUTE ON PROCEDURE apagar_aluno TO 'gestor_alunos'@'localhost'; 
+
 -- ===========================================================================================
 -- Livros
 -- ===========================================================================================
--- 4. Criar um livro
+-- 5. Listar livros
+CREATE PROCEDURE listar_livros ()
+BEGIN
+	SELECT * FROM Livro;
+END $$
+
+-- 6. Criar um livro
 CREATE PROCEDURE adicionar_livro(IN titulo_new varchar(255), IN autor_new varchar(255), IN editor_new varchar(255))
 BEGIN
 	INSERT INTO Livro(titulo, autor, editor)
     VALUES (titulo_new, autor_new, editor_new);
 END $$
 
--- 5. Update de um livro
+-- 7. Update de um livro
 CREATE PROCEDURE atualizar_livro(IN n_livro integer, IN titulo_new varchar(255), IN autor_new varchar(255), IN editor_new varchar(255))
 BEGIN 
 	UPDATE Livro
@@ -87,18 +116,24 @@ BEGIN
     WHERE numero_livro = n_livro;
 END $$
 
--- 6. Apagar um livro
+-- 8. Apagar um livro
 CREATE PROCEDURE apagar_livro(IN n_livro integer)
 BEGIN
 	DELETE FROM Livro
     WHERE numero_livro = n_livro;
 END $$
 
+-- Damos permissoes ao utilizador "gestor_livros" de executar estes procedures
+GRANT EXECUTE ON PROCEDURE listar_livros TO 'gestor_livros'@'localhost'; 
+GRANT EXECUTE ON PROCEDURE adicionar_livro TO 'gestor_livros'@'localhost'; 
+GRANT EXECUTE ON PROCEDURE atualizar_livro TO 'gestor_livros'@'localhost'; 
+GRANT EXECUTE ON PROCEDURE apagar_livro TO 'gestor_livros'@'localhost'; 
+
 -- ===========================================================================================
 -- Empréstimos
 -- ===========================================================================================
 
--- 7. Criar emprestimo
+-- . Criar emprestimo
 CREATE PROCEDURE adicionar_emprestimo(IN n_aluno integer, IN n_livro integer)
 BEGIN
 	-- So fazemos emprestimo se livro estiver disponivel
@@ -143,5 +178,17 @@ BEGIN
     END IF;
 END $$
 DELIMITER ;
+
+-- Damos permissoes ao utilizador "gestor_emprestimos" de executar estes procedures
+GRANT EXECUTE ON PROCEDURE adicionar_emprestimo TO 'gestor_emprestimos'@'localhost'; 
+GRANT EXECUTE ON PROCEDURE devolver_livro TO 'gestor_emprestimos'@'localhost'; 
+GRANT EXECUTE ON PROCEDURE relatorio_livros_nao_entregues TO 'gestor_emprestimos'@'localhost'; 
+
+SET character_set_client = utf8;
+SET character_set_connection = utf8;
+SET character_set_results = utf8;
+SET collation_connection = utf8_general_ci;
+
+
 
 
