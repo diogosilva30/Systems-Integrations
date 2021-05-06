@@ -6,6 +6,8 @@ use ex2;
 DROP USER IF EXISTS 'gestor_livros'@'localhost' ;
 DROP USER IF EXISTS 'gestor_emprestimos'@'localhost' ;
 DROP USER IF EXISTS 'gestor_alunos'@'localhost' ;
+
+
 -- Primeiro criamos utilizadores
 CREATE USER 'gestor_livros'@'localhost' IDENTIFIED BY 'password'; 
 CREATE USER 'gestor_emprestimos'@'localhost' IDENTIFIED BY 'password'; 
@@ -177,12 +179,32 @@ BEGIN
 		SELECT * From Livro WHERE numero_livro IN (SELECT numero_livro FROM Emprestimo WHERE data_entrega is null AND numero_aluno=n_aluno);
     END IF;
 END $$
-DELIMITER ;
+
 
 -- Damos permissoes ao utilizador "gestor_emprestimos" de executar estes procedures
-GRANT EXECUTE ON PROCEDURE adicionar_emprestimo TO 'gestor_emprestimos'@'localhost'; 
-GRANT EXECUTE ON PROCEDURE devolver_livro TO 'gestor_emprestimos'@'localhost'; 
-GRANT EXECUTE ON PROCEDURE relatorio_livros_nao_entregues TO 'gestor_emprestimos'@'localhost'; 
+GRANT EXECUTE ON PROCEDURE adicionar_emprestimo TO 'gestor_emprestimos'@'localhost' $$
+GRANT EXECUTE ON PROCEDURE devolver_livro TO 'gestor_emprestimos'@'localhost' $$
+GRANT EXECUTE ON PROCEDURE relatorio_livros_nao_entregues TO 'gestor_emprestimos'@'localhost' $$ 
+
+-- ===========================================================================================
+-- Triggers
+-- ===========================================================================================
+
+-- Em MySQL os triggers não podem ter código dinâmico, o que não permite nomes de ficheiro dinamicos.
+-- MySQL também nao permite dar overwrite ao ficheiro exportado (senão dá erro). Vai ter que ser o watcher
+-- a encarregar-se de mudar o nome de ficheiro quando detetar alteracoes
+
+CREATE TRIGGER aluno_inserido
+    AFTER INSERT
+    ON Aluno FOR EACH ROW
+BEGIN
+    SELECT * FROM Aluno WHERE numero_aluno = NEW.numero_aluno  INTO OUTFILE 'C:/tmp/aluno.txt'
+	FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
+	LINES TERMINATED BY '\n';
+END$$ 
+
+
+DELIMITER ;
 
 SET character_set_client = utf8;
 SET character_set_connection = utf8;
