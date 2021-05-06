@@ -194,11 +194,49 @@ GRANT EXECUTE ON PROCEDURE relatorio_livros_nao_entregues TO 'gestor_emprestimos
 -- MySQL também nao permite dar overwrite ao ficheiro exportado (senão dá erro). Vai ter que ser o watcher
 -- a encarregar-se de mudar o nome de ficheiro quando detetar alteracoes
 
+
 CREATE TRIGGER aluno_inserido
     AFTER INSERT
     ON Aluno FOR EACH ROW
 BEGIN
-    SELECT * FROM Aluno WHERE numero_aluno = NEW.numero_aluno  INTO OUTFILE 'C:/tmp/aluno.txt'
+	-- Este select inicial acrescenta "headers" no ficheiro exportado
+    -- Este headers servem para identificar quais os campos que foram exportados
+    SELECT 'Action', 'Numero', 'Nome', 'Endereco', 'Garantia'
+    UNION ALL
+    -- No inicio da row que será escrita no ficheiro acrescentamos uma flag 'create' que indica que é
+    -- uma operação de criação
+	SELECT 'create' as action, numero_aluno, nome, endereco, garantia FROM Aluno WHERE numero_aluno = NEW.numero_aluno  INTO OUTFILE 'C:/tmp/aluno.csv'
+	FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
+	LINES TERMINATED BY '\n';
+END$$ 
+
+CREATE TRIGGER aluno_apagado
+    AFTER DELETE
+    ON Aluno FOR EACH ROW
+BEGIN
+    -- Este select inicial acrescenta "headers" no ficheiro exportado
+    -- Este headers servem para identificar quais os campos que foram exportados
+    SELECT 'Action', 'Numero', 'Nome', 'Endereco', 'Garantia'
+    UNION ALL
+    -- No inicio da row que será escrita no ficheiro acrescentamos uma flag 'delete' que indica que é
+    -- uma operação para apagar um aluno
+    -- No delete não podemos fazer select pois ja foi apagado
+	SELECT 'delete' as action, old.numero_aluno, old.nome, old.endereco, old.garantia  INTO OUTFILE 'C:/tmp/aluno.csv'
+	FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
+	LINES TERMINATED BY '\n';
+END$$
+
+CREATE TRIGGER aluno_atualizado
+    AFTER UPDATE
+    ON Aluno FOR EACH ROW
+BEGIN
+    -- Este select inicial acrescenta "headers" no ficheiro exportado
+    -- Este headers servem para identificar quais os campos que foram exportados
+    SELECT 'Action', 'Numero', 'Nome', 'Endereco', 'Garantia'
+    UNION ALL
+    -- No inicio da row que será escrita no ficheiro acrescentamos uma flag 'delete' que indica que é
+    -- uma operação para apagar um aluno
+	SELECT 'update' as action, numero_aluno, nome, endereco, garantia FROM Aluno WHERE numero_aluno = NEW.numero_aluno  INTO OUTFILE 'C:/tmp/aluno.csv'
 	FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
 	LINES TERMINATED BY '\n';
 END$$ 

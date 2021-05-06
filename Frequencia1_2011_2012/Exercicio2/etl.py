@@ -1,22 +1,35 @@
-from watchdog.events import FileSystemEventHandler
-from watchdog.observers import Observer
+"""
+Modulo ETL que coloca um observer à escuta de alterações de ficheiros
+numa determinada diretoria. Sempre que um novo ficheiro '.csv' é criado
+nesta diretoria, este é lido e os dados são atualizados numa base de dados NoSQL (MongoDB)
+
+Bibliotecas externas necessárias à execução:
+    - pandas: `pip install pandas`. Necessário para ler e fazer parsing de ficheiros '.csv'.
+    - watchdog: `pip install watchdog`. Necessário para notificar de alterações numa determinada diretoria.
+    - pymongo: `pip install pymongo`. Driver necessário para a conexão do programa com a base de dados MongoDB.
+
+Suposições para o funcionamento:
+    - Pré-Criação de uma base de dados em MongoDB chamada "ex2-ETL"
+    - Pré-Criação de uma "Collection" (dentro da base de dados "ex2-ETL") chamada de "Aluno".
+"""
+import os
 import time
 import datetime
 
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
+
+import pandas as pd
+
 from pymongo import MongoClient
-import os
 
 
 class AlunoHandler(FileSystemEventHandler):
     """
-    Classe observer que fica a escuta de alteracoes no ficheiro exportado 'aluno.txt'
+    Classe observer que fica a escuta de alteracoes no ficheiro exportado 'aluno.csv'
     Como o MySQL nao permite nomes dinamicos no ficheiro exportado e não permite dar overwrite
     no ficheiro, sempre que este for lido deve ter o seu nome alterado.
     Após a leitura do ficheiro, os dados são inseridos numa base de dados MongoDB.
-    É necessário instalar o connector 'pymongo'
-
-    Vamos fazer de conta que esta base de dados MongoDB é uma versão internacional
-    da base dados MySQL. Ou seja o conteúdo estar em inglês.
     """
 
     def __init__(self, *args, **kwargs):
@@ -28,43 +41,65 @@ class AlunoHandler(FileSystemEventHandler):
         # Chamar parent constructor
         super().__init__(*args, **kwargs)
 
+    def _adicionar_aluno(self, dict_values):
+        """
+        Adiciona 1 aluno à base de dados MongoDB.
+        """
+        # inserir na base de dados Mongo, coluna "Aluno"
+        self.database["Aluno"].insert_one(dict_values)
+
+    def _atualizar_aluno(self, dados: pd.DataFrame):
+        """
+        Atualiza 1 aluno da base de dados MongoDB.
+        """
+        self.database["Aluno"].update_one(dict_values)
+
+    def _apagar_aluno(self, dict_values):
+        """
+        Apaga 1 aluno da basede dados MongoDB.
+
+        """
+        # Apagar da tabela Aluno
+        self.database["Aluno"].delete_one(dict_values)
+
     def on_created(self, event):
         """
         Evento disparado sempre que é criado o ficheiro.
         """
         # Primeiro mudamos o nome do ficheiro para um nome unico (para evitar clashes)
         # Para isso marcamos o ficheiro com um timestamp
-
         new_name = (
-            event.src_path.split("/aluno.txt")[0]
-            + f"/aluno_{datetime.datetime.now().timestamp()}.txt"
+            event.src_path.split("/aluno.csv")[0]
+            + f"/aluno_{datetime.datetime.now().timestamp()}.csv"
         )
         # Fazemos entao o rename para um nome unico
         os.rename(event.src_path, new_name)
 
-        # Agora lemos o novo ficheiro
-        with open(new_name, "r") as myfile:
-            # Lemos a primeira linha e separamos por ','
-            data = myfile.read().splitlines()[0].split(",")
+        # lemos o novo ficheiro .csv com o pandas
+        # usamos iloc[0] para ir buscar a primeira row apenas
+        # (pois o ficheiro apenas contem 1 linha)
+        # Lemos tudo como tipo string para os números nao serem
+        # lidos como numpy, pois o pymongo nao sabe lidar com numeros numpy
+        df = pd.read_csv(new_name, dtype="str").iloc[0]
 
-        # Agora temos a variavel 'data' que é uma lista com elementos
-        # adicionados
+        # Primeiro verificamos qual a ação a efetuar
+        # (e retiramos do df)
+        action = df.pop("Action")
 
-        # Criamos entao um novo "documento" do mongo db
-        # Aqui também poderiamos fazer algum tipo de transformacao dos dados... (Parte do transform)
-        # Neste caso vamos fazer uma "transformacao" simples de guardar os valores com "colunas" (chaves em NoSQL) em ingles
+        # Converter para dicionario (formato nativo do MongoDB)
+        dict_values = df.to_dict()
+        # Log para a consola
+        print(f"ALTERAÇÕES DETETADAS {new_name}:")
+        print(f"\tAction: {action}")
+        print(f"\tValores: {dict_values}")
 
-        # Extrair nome e remover aspas
-        name = data[1].replace('"', "")
-        # Extrair morada e remover aspas
-        address = data[2].replace('"', "")
-        warranty = int(data[3])
-
-        # preparar documento a inserir
-        doc = {"name": name, "address": address, "warranty": warranty}
-
-        # inserir na base de dados Mongo, coluna "Student"
-        self.database["Student"].insert_one(doc)
+        # Agora decidimos o que fazer com base na acao
+        if action == "create":
+            self._adicionar_aluno(dict_values)
+        elif action == "update":
+            self._atualizar_aluno(dict_values)
+        elif action == "delete":
+            self._apagar_aluno(dict_values)
 
 
 if __name__ == "__main__":
