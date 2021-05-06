@@ -26,8 +26,9 @@ from pymongo import MongoClient
 
 class AlunoHandler(FileSystemEventHandler):
     """
-    Classe observer que fica a escuta de alteracoes no ficheiro exportado 'aluno.csv'
-    Como o MySQL nao permite nomes dinamicos no ficheiro exportado e não permite dar overwrite
+    Classe que faz o handling sempre que houver alterações no ficheiro exportado 'aluno.csv'.
+    Ou seja faz o TL (Transform e Load).
+    Como o MySQL não permite nomes dinámicos no ficheiro exportado e não permite dar overwrite
     no ficheiro, sempre que este for lido deve ter o seu nome alterado.
     Após a leitura do ficheiro, os dados são inseridos numa base de dados MongoDB.
     """
