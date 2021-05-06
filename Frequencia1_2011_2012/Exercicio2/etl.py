@@ -48,11 +48,16 @@ class AlunoHandler(FileSystemEventHandler):
         # inserir na base de dados Mongo, coluna "Aluno"
         self.database["Aluno"].insert_one(dict_values)
 
-    def _atualizar_aluno(self, dados: pd.DataFrame):
+    def _atualizar_aluno(self, dict_values):
         """
         Atualiza 1 aluno da base de dados MongoDB.
         """
-        self.database["Aluno"].update_one(dict_values)
+        # Para atualizar temos de usar um filtro para encontrar o aluno
+        # que será o numero
+        filtro = {"Numero": dict_values.pop("Numero")}
+        # Criar query para update
+        update_query = {"$set": dict_values}
+        self.database["Aluno"].update_one(filtro, update_query)
 
     def _apagar_aluno(self, dict_values):
         """
